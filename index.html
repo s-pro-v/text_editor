@@ -1,0 +1,955 @@
+<!DOCTYPE html>
+<html lang="pl">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>SunEditor</title>
+    <link href="vendor/suneditor/dist/suneditor.min.css" rel="stylesheet">
+    <!-- Motywy (se-theme-*) są w osobnych plikach — bez tego resetOptions({ theme }) zmienia tylko klasę, bez widocznego efektu. -->
+    <link href="vendor/suneditor/themes/dark.css" rel="stylesheet">
+    <link href="vendor/suneditor/themes/midnight.css" rel="stylesheet">
+    <link href="vendor/suneditor/themes/cobalt.css" rel="stylesheet">
+    <link href="vendor/suneditor/themes/cream.css" rel="stylesheet">
+    <!-- CodeMirror 5: SunEditor 3 w code view wywołuje getDoc(), setOption(), refresh() — to API CM5. Pakiet npm codemirror@6.65.x to nadal CM5; prawdziwy CM6 to @codemirror/*. -->
+    <link href="vendor/codemirror/lib/codemirror.min.css" rel="stylesheet">
+    <!-- Jasny: wbudowany motyw default (cm-s-default). Ciemny: monokai — dopasowany do motywów SunEditor dark/midnight/cobalt. -->
+    <link href="vendor/codemirror/theme/monokai.min.css" rel="stylesheet">
+    <link href="vendor/katex/dist/katex.min.css" rel="stylesheet">
+    <script src="vendor/codemirror/lib/codemirror.min.js"></script>
+    <script src="vendor/codemirror/mode/xml/xml.js"></script>
+    <script src="vendor/codemirror/mode/javascript/javascript.js"></script>
+    <script src="vendor/codemirror/mode/css/css.js"></script>
+    <script src="vendor/codemirror/mode/htmlmixed/htmlmixed.js"></script>
+    <script src="vendor/katex/dist/katex.min.js"></script>
+    <script src="vendor/suneditor/dist/suneditor.min.js"></script>
+    <style>
+        @import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Share+Tech+Mono&display=swap");
+        @import url("https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css");
+
+        :root {
+            /* --- COLORS: PALETTE --- */
+            --bg-color: #f8f9fa;
+            --color-orange: #f36c00;
+            --rgba-orange: 243, 108, 0;
+            --color-orange-soft: rgba(var(--rgba-orange), 0.1);
+            --highlight-color: var(--color-orange);
+            --success-color: #28a745;
+            --danger-color: #dc3545;
+            --warning-color: #ffc107;
+            --info-color: #17a2b8;
+            --border-color: #dee2e6;
+            --vs-vi-color: #3b82f6;
+            --tak-color: #16a34a;
+            --nie-color: #dc2626;
+
+            --rgba-warning-color: 255, 193, 7;
+            --rgba-success-color: 40, 167, 69;
+            --rgba-danger-color: 220, 53, 69;
+            --rgba-info-color: 23, 162, 184;
+            --rgba-vs-vi-color: 59, 130, 246;
+            --rgba-tak-color: 22, 163, 74;
+            --rgba-nie-color: 220, 38, 38;
+
+            --highlight-rgb: var(--rgba-orange);
+            --rgba-highlight: var(--rgba-orange);
+            --rgba-bg-primary: 255, 255, 255;
+            --text-color-rgb: 33, 37, 41;
+            --text-muted-rgb: 108, 117, 125;
+            --bg-rgb: 248, 249, 250;
+            --border-color-rgb: 222, 226, 230;
+
+            --vs-trailer-text: #117a65;
+            --r-trailer-text: #2471a3;
+            --missing-scac-text: #c54235;
+            --visit-inbound-text: #2471a3;
+            --visit-outbound-text: #b5830e;
+
+            --font-family: "JetBrains Mono", "Share Tech Mono", monaco, courier, monospace;
+            --font-main: var(--font-family);
+            --transition-speed: 0.2s;
+            --screen-bg: #f0f0f0;
+            --screen-border: #adb5bd;
+
+            --bg: #f8f9fa;
+            --bg-primary: #fff;
+            --bg-secondary: #f8f9fa;
+            --bg-tertiary: #fff;
+
+            --panel-bg: #f8f9fa;
+            --card-bg: #ffffff;
+            --input-bg: #f5f5f5;
+
+            --text-color: #212529;
+            --text-primary: #212529;
+            --text-muted: #6c757d;
+            --text-inverse: #fff;
+
+            --border-color-hover: #e0e0e0;
+            --hover-bg: #eee;
+            --grid-color: rgba(0, 0, 0, 0.03);
+            --bg-grid-size: 20px 20px;
+            --bg-grid: linear-gradient(var(--grid-color) 1px, transparent 1px),
+                linear-gradient(90deg, var(--grid-color) 1px, transparent 1px);
+
+            --tak-bg: rgba(22, 163, 74, 0.1);
+            --nie-bg: rgba(220, 38, 38, 0.1);
+            --vs-vi-bg: rgba(59, 130, 246, 0.1);
+            --highlight-bg: var(--color-orange-soft);
+            --latest-bg: rgba(189, 189, 189, 0.15);
+            --highlight-soft: var(--highlight-bg);
+
+            --filter-icon: invert(0);
+            --filter-icon-hover: invert(24%) sepia(93%) saturate(2130%) hue-rotate(353deg) brightness(97%) contrast(108%);
+            --filter-icon-success: invert(55%) sepia(44%) saturate(551%) hue-rotate(89deg) brightness(93%) contrast(97%);
+            --filter-icon-danger: invert(36%) sepia(83%) saturate(2030%) hue-rotate(353deg) brightness(97%) contrast(108%);
+            --metal-gradient: linear-gradient(165deg, var(--bg-primary) 0%, var(--panel-bg) 45%, var(--border-color-hover) 100%);
+            --stripe-accent: rgba(0, 0, 0, 0.06);
+            --bg-stripe-pattern: linear-gradient(135deg,
+                    transparent 0%,
+                    transparent 25%,
+                    var(--stripe-accent) 25%,
+                    var(--stripe-accent) 50%,
+                    transparent 50%,
+                    transparent 75%,
+                    var(--stripe-accent) 75%,
+                    var(--stripe-accent) 100%);
+            --bg-stripe-size: 20px 20px;
+
+            /* --- SHADOWS: PRIMITIVES --- */
+            --shadow-ambient-rgb: 0, 0, 0;
+            --shadow-ambient-alpha: 0.32;
+            --shadow-specular-rgb: 255, 255, 255;
+            --shadow-specular-alpha: 0.55;
+            --shadow-ring-highlight-alpha: 0.38;
+            --shadow-lift-y: -1px;
+
+            /* --- SHADOWS: COMPOSED --- */
+            --shadow-ring-highlight: rgba(var(--rgba-orange), var(--shadow-ring-highlight-alpha));
+            --shadow-ambient: rgba(var(--shadow-ambient-rgb), var(--shadow-ambient-alpha));
+            --shadow-specular: rgba(var(--shadow-specular-rgb), var(--shadow-specular-alpha));
+            --shadow-drop: rgba(0, 0, 0, 0.3) 0px 1px 2px 0px, rgba(78, 78, 78, 0.185) 0px 2px 6px 2px;
+            --shadow-inset: inset rgba(78, 78, 78, 0.185) 0px 2px 6px 2px, inset rgba(0, 0, 0, 0.3) 0px 1px 2px 0px;
+            --shadow-hover: rgba(32, 32, 32, 0.2) 0px 0px 0px 1px, rgba(0, 0, 0, 0.325) 0px 2px 3px -0.5px, rgba(255, 255, 255, 0.04) 0px 0.5px 0px inset;
+            --shadow-button-hover: var(--shadow-ring-highlight) 0px 0px 0px 2px, var(--shadow-ambient) 0px 6px 14px -4px, var(--shadow-specular) 0px 1px 0px inset;
+
+            /* --- CONTROL: BUTTON — szary → pomarańcz → szary (active) --- */
+            --control-button-bg: var(--input-bg);
+            --control-button-border: var(--border-color);
+            --control-button-color: var(--text-primary);
+            --control-button-bg-hover: var(--color-orange-soft);
+            --control-button-border-hover: var(--color-orange);
+            --control-button-color-hover: var(--color-orange);
+            --control-button-bg-focus: var(--color-orange-soft);
+            --control-button-border-focus: var(--color-orange);
+            --control-button-color-focus: var(--color-orange);
+            --control-button-shadow-focus: 0 0 0 2px rgba(var(--rgba-orange), 0.42);
+            --control-button-bg-active: var(--hover-bg);
+            --control-button-border-active: var(--border-color-hover);
+            --control-button-color-active: var(--text-primary);
+            --control-button-shadow: var(--shadow-drop);
+            --control-button-shadow-hover: var(--shadow-button-hover);
+            --control-button-shadow-active: var(--shadow-inset);
+            --control-button-lift-hover: var(--shadow-lift-y);
+
+            /* --- CONTROL: SUN-EDITOR (.se-btn) — szary → pomarańcz → szary (active) --- */
+            --control-se-btn-bg: var(--input-bg);
+            --control-se-btn-border: var(--border-color);
+            --control-se-btn-color: var(--text-primary);
+            --control-se-btn-bg-on: var(--color-orange-soft);
+            --control-se-btn-border-on: var(--color-orange);
+            --control-se-btn-color-on: var(--color-orange);
+            --control-se-btn-bg-hover: var(--color-orange-soft);
+            --control-se-btn-border-hover: var(--color-orange);
+            --control-se-btn-color-hover: var(--color-orange);
+            --control-se-btn-bg-focus: var(--color-orange-soft);
+            --control-se-btn-border-focus: var(--color-orange);
+            --control-se-btn-color-focus: var(--color-orange);
+            --control-se-btn-shadow-focus: 0 0 0 2px rgba(var(--rgba-orange), 0.42);
+            --control-se-btn-bg-active: var(--hover-bg);
+            --control-se-btn-border-active: var(--border-color-hover);
+            --control-se-btn-color-active: var(--text-primary);
+
+            /* --- CONTROL: SUN-EDITOR (li.se-toolbar-hidden-btn) --- */
+            --control-se-toolbar-hidden-bg: var(--control-se-btn-bg);
+            --control-se-toolbar-hidden-border: var(--control-se-btn-border);
+            --control-se-toolbar-hidden-color: var(--control-se-btn-color);
+            --control-se-toolbar-hidden-bg-hover: var(--control-se-btn-bg-hover);
+            --control-se-toolbar-hidden-border-hover: var(--control-se-btn-border-hover);
+            --control-se-toolbar-hidden-color-hover: var(--control-se-btn-color-hover);
+            --control-se-toolbar-hidden-bg-active: var(--control-se-btn-bg-active);
+            --control-se-toolbar-hidden-border-active: var(--control-se-btn-border-active);
+            --control-se-toolbar-hidden-color-active: var(--control-se-btn-color-active);
+            --control-se-toolbar-hidden-shadow: var(--control-button-shadow);
+            --control-se-toolbar-hidden-shadow-hover: var(--control-button-shadow-hover);
+            --control-se-toolbar-hidden-shadow-active: var(--control-button-shadow-active);
+            --control-se-toolbar-hidden-lift-hover: var(--control-button-lift-hover);
+
+            --background-v: repeating-linear-gradient(45deg, transparent, transparent 10px, var(--grid-color) 10px, var(--grid-color) 11px);
+
+            --json-key: var(--highlight-color);
+            --json-string: var(--success-color);
+            --json-number: #005cc5;
+            --json-boolean: var(--danger-color);
+
+            --bg-base: var(--bg);
+            --bg-panel: var(--panel-bg);
+            --bg-panel-light: var(--bg-tertiary);
+            --text-main: var(--text-primary);
+            --accent-primary: var(--highlight-color);
+            --accent-alert: var(--danger-color);
+            --font-mono: var(--font-main);
+
+            --highlight: var(--highlight-color);
+
+            --muted-gray: #ced4da;
+            --bg-deep: #e9ecef;
+            --text-pure: var(--text-primary);
+            --accent-neon: var(--color-orange);
+            --warning-color: var(--color-orange);
+        }
+
+        :root.theme-switching,
+        :root.theme-switching *,
+        :root.theme-switching *::before,
+        :root.theme-switching *::after {
+            transition-duration: 0s !important;
+            transition-delay: 0s !important;
+        }
+
+        :root[theme="dark"] {
+            --bg-color: #1a1a1a;
+            --bg: #121212;
+            --bg-primary: #1e1e1e;
+            --bg-secondary: #252526;
+            --bg-tertiary: #2e2e2e;
+            --border-color: #333;
+            --panel-bg: #2a2a2a;
+            --card-bg: #303030;
+            --input-bg: #2d2d30;
+
+            --text-color: #e0e0e0;
+            --text-primary: #e0e0e0;
+            --text-muted: #858585;
+            --text-inverse: #000;
+            --screen-bg: #0d0d0d;
+            --screen-border: #2a2a2a;
+            --border-color-hover: #444;
+            --hover-bg: #3c3c3c;
+            --grid-color: rgba(255, 255, 255, 0.03);
+            --bg-grid-size: 20px 20px;
+            --bg-grid: linear-gradient(var(--grid-color) 1px, transparent 1px),
+                linear-gradient(90deg, var(--grid-color) 1px, transparent 1px);
+            --rgba-warning-color: 255, 193, 7;
+            --rgba-success-color: 40, 167, 69;
+            --rgba-danger-color: 220, 53, 69;
+            --rgba-info-color: 23, 162, 184;
+            --rgba-vs-vi-color: 59, 130, 246;
+            --rgba-tak-color: 22, 163, 74;
+            --rgba-nie-color: 220, 38, 38;
+
+            --highlight-rgb: var(--rgba-orange);
+            --rgba-highlight: var(--rgba-orange);
+            --rgba-bg-primary: 30, 30, 30;
+            --text-color-rgb: 224, 224, 224;
+            --text-muted-rgb: 133, 133, 133;
+            --bg-rgb: 18, 18, 18;
+            --border-color-rgb: 42, 42, 42;
+
+            --vs-trailer-text: #4db6ac;
+            --r-trailer-text: #64b5f6;
+            --missing-scac-text: #e57373;
+            --visit-inbound-text: #ffb74d;
+            --visit-outbound-text: #81c784;
+
+            --tak-bg: rgba(34, 197, 94, 0.15);
+            --nie-bg: rgba(239, 68, 68, 0.15);
+            --vs-vi-bg: rgba(96, 165, 250, 0.15);
+            --color-orange-soft: rgba(var(--rgba-orange), 0.15);
+            --highlight-bg: var(--color-orange-soft);
+            --latest-bg: rgba(189, 189, 189, 0.15);
+            --highlight-soft: var(--highlight-bg);
+
+            --filter-icon: invert(1) brightness(0.9) saturate(0.9);
+            --filter-icon-hover: invert(36%) sepia(83%) saturate(2030%) hue-rotate(353deg) brightness(97%) contrast(108%);
+            --filter-icon-success: invert(55%) sepia(44%) saturate(551%) hue-rotate(89deg) brightness(93%) contrast(97%);
+            --filter-icon-danger: invert(36%) sepia(83%) saturate(2030%) hue-rotate(353deg) brightness(97%) contrast(108%);
+            --metal-gradient: linear-gradient(165deg, var(--panel-bg) 0%, var(--bg-primary) 45%, var(--bg-tertiary) 100%);
+            --stripe-accent: rgba(255, 255, 255, 0.06);
+            --bg-stripe-pattern: linear-gradient(135deg,
+                    var(--bg-tertiary) 0%,
+                    var(--bg-tertiary) 25%,
+                    var(--stripe-accent) 25%,
+                    var(--stripe-accent) 50%,
+                    var(--bg-tertiary) 50%,
+                    var(--bg-tertiary) 75%,
+                    var(--stripe-accent) 75%,
+                    var(--stripe-accent) 100%);
+            --bg-stripe-size: 20px 20px;
+
+            /* --- SHADOWS: PRIMITIVES (dark) --- */
+            --shadow-ambient-alpha: 0.72;
+            --shadow-specular-alpha: 0.14;
+            --shadow-ring-highlight-alpha: 0.55;
+
+            /* --- SHADOWS: COMPOSED (dark) --- */
+            --shadow-drop: rgba(32, 32, 32, 0.4) 0px 0px 0px 2px, rgba(0, 0, 0, 0.65) 0px 4px 6px -1px, rgba(255, 255, 255, 0.08) 0px 1px 0px inset;
+            --shadow-inset: inset 0px 0px 0px 2px rgba(32, 32, 32, 0.4), inset 0px 4px 6px -1px rgba(0, 0, 0, 0.65),
+                inset 0px 1px 0px rgba(255, 255, 255, 0.08);
+            --shadow-hover: rgba(32, 32, 32, 0.2) 0px 0px 0px 1px, rgba(0, 0, 0, 0.325) 0px 2px 3px -0.5px, rgba(255, 255, 255, 0.04) 0px 0.5px 0px inset;
+            --shadow-button-hover: var(--shadow-ring-highlight) 0px 0px 0px 2px, var(--shadow-ambient) 0px 8px 18px -5px, var(--shadow-specular) 0px 1px 0px inset;
+
+            --json-number: #79b8ff;
+            --json-boolean: #f97583;
+
+            --highlight: var(--highlight-color);
+            --warning-color: var(--highlight-color);
+
+            --muted-gray: #555555;
+            --bg-deep: #1a1a1a;
+            --text-pure: #f5f5f5;
+            --accent-neon: var(--color-orange);
+        }
+
+        * {
+            border-radius: 0 !important;
+            outline: none !important;
+            scrollbar-width: none !important;
+        }
+
+        body,
+        h1,
+        .theme-switcher {
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        .sun-editor,
+        .sun-editor * {
+            user-select: auto !important;
+            -webkit-user-select: auto !important;
+        }
+
+        body {
+            margin: 6em 4rem 4rem;
+            font-family: var(--font-main);
+            background-color: var(--bg);
+            background-image: var(--bg-grid);
+            background-size: var(--bg-grid-size);
+            color: var(--text-primary);
+            transition: background-color var(--transition-speed), color var(--transition-speed), border-color var(--transition-speed);
+        }
+
+        /* Akcent UI strony zawsze pomarańczowy — niezależnie od motywu SunEditora w toolbarze. */
+
+        h1 {
+            margin: 0 0 0.35rem;
+            font-weight: 800;
+            letter-spacing: -0.03em;
+            color: var(--text-pure);
+            text-shadow: 0 0 1px rgba(var(--text-color-rgb), 0.15);
+        }
+
+        .theme-switcher {
+            margin: 0.75rem 0 1.25rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            padding: 0.5rem 0.65rem;
+            background: var(--metal-gradient);
+            border: 1px solid var(--border-color);
+            box-shadow: var(--shadow-inset);
+        }
+
+        .theme-switcher label {
+            font-weight: 600;
+            color: var(--text-muted);
+        }
+
+        .theme-switcher select {
+            min-width: 14rem;
+            padding: 0.4rem 0.55rem;
+            font: inherit;
+            color: var(--control-button-color);
+            background: var(--control-button-bg);
+            border: 1px solid var(--control-button-border);
+            transition: border-color var(--transition-speed), box-shadow var(--transition-speed), background-color var(--transition-speed), color var(--transition-speed);
+        }
+
+        .theme-switcher select:hover {
+            background: var(--control-button-bg-hover);
+            border-color: var(--control-button-border-hover);
+            color: var(--control-button-color-hover);
+            box-shadow: var(--control-button-shadow-hover);
+        }
+
+        .theme-switcher select:focus {
+            background: var(--control-button-bg-focus);
+            border-color: var(--control-button-border-focus);
+            color: var(--control-button-color-focus);
+            box-shadow: var(--control-button-shadow-focus);
+        }
+
+        .theme-switcher select option {
+            background: var(--card-bg);
+            color: var(--text-primary);
+        }
+
+        a {
+            color: var(--highlight-color);
+            text-decoration-color: rgba(var(--rgba-highlight), 0.55);
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+
+        /* Przyciski poza SunEditorem — tokeny z sekcji CONTROL: BUTTON w :root. */
+        button:not(.se-btn),
+        input[type="button"]:not(.sun-editor *),
+        input[type="submit"]:not(.sun-editor *),
+        input[type="reset"]:not(.sun-editor *) {
+            background: var(--control-button-bg);
+            border: 1px solid var(--control-button-border);
+            color: var(--control-button-color);
+            box-shadow: var(--control-button-shadow);
+            transition: box-shadow var(--transition-speed), transform var(--transition-speed), background-color var(--transition-speed), border-color var(--transition-speed), color var(--transition-speed);
+        }
+
+        button:not(.se-btn):hover,
+        input[type="button"]:not(.sun-editor *):hover,
+        input[type="submit"]:not(.sun-editor *):hover,
+        input[type="reset"]:not(.sun-editor *):hover {
+            background: var(--control-button-bg-hover);
+            border-color: var(--control-button-border-hover);
+            color: var(--control-button-color-hover);
+            box-shadow: var(--control-button-shadow-hover);
+            transform: translateY(var(--control-button-lift-hover));
+        }
+
+        button:not(.se-btn):focus,
+        button:not(.se-btn):focus-visible,
+        input[type="button"]:not(.sun-editor *):focus,
+        input[type="button"]:not(.sun-editor *):focus-visible,
+        input[type="submit"]:not(.sun-editor *):focus,
+        input[type="submit"]:not(.sun-editor *):focus-visible,
+        input[type="reset"]:not(.sun-editor *):focus,
+        input[type="reset"]:not(.sun-editor *):focus-visible {
+            background: var(--control-button-bg-focus);
+            border-color: var(--control-button-border-focus);
+            color: var(--control-button-color-focus);
+            box-shadow: var(--control-button-shadow-focus);
+        }
+
+        button:not(.se-btn):active,
+        input[type="button"]:not(.sun-editor *):active,
+        input[type="submit"]:not(.sun-editor *):active,
+        input[type="reset"]:not(.sun-editor *):active {
+            background: var(--control-button-bg-active);
+            border-color: var(--control-button-border-active);
+            color: var(--control-button-color-active);
+            box-shadow: var(--control-button-shadow-active);
+            transform: translateY(0);
+        }
+
+        /* SunEditor: zmienne motywu — szary (domyślny) / pomarańcz (hover, on) / szary (active). */
+        .sun-editor,
+        .sun-editor-editable {
+            --se-edit-hover: var(--hover-bg);
+            --se-edit-active: var(--color-orange);
+            --se-edit-anchor-on-back: var(--color-orange-soft);
+            --se-edit-anchor-on-font: var(--color-orange);
+            --se-edit-hr-on-back: var(--hover-bg);
+            --se-hover-light-color: var(--color-orange-soft);
+            --se-hover-dark-color: var(--color-orange);
+            --se-hover-dark2-color: var(--color-orange);
+            --se-hover-dark3-color: var(--color-orange);
+            --se-hover-color: var(--color-orange);
+            --se-hover-light2-color: var(--hover-bg);
+            --se-hover-light3-color: var(--hover-bg);
+            --se-active-light-color: var(--input-bg);
+            --se-active-light2-color: var(--hover-bg);
+            --se-active-light3-color: var(--color-orange-soft);
+            --se-active-light4-color: var(--color-orange-soft);
+            --se-active-light5-color: var(--color-orange-soft);
+            --se-active-light6-color: var(--color-orange-soft);
+            --se-active-color: var(--color-orange);
+            --se-active-hover-color: var(--color-orange);
+            --se-active-dark-color: var(--color-orange);
+            --se-active-dark2-color: var(--color-orange);
+            --se-active-dark3-color: var(--color-orange);
+            --se-active-dark4-color: var(--color-orange);
+            --se-active-dark5-color: var(--border-color-hover);
+            --se-modal-anchor-color: var(--color-orange);
+            --se-table-picker-highlight-border-color: var(--color-orange);
+            --se-doc-info-active-color: var(--color-orange);
+            --se-loading-color: var(--color-orange);
+            --se-show-blocks-color: var(--color-orange);
+            --se-main-outline-color: var(--color-orange);
+        }
+
+        /*
+         * SunEditor: input.se-color-input — wyłącznie dolna kreska w kolorze
+         * (SE ustawia inputElement.style.borderColor = hex; reszta obramowania wyłączona).
+         */
+        .sun-editor input.se-color-input {
+            background: transparent !important;
+            border: 0 !important;
+            border-bottom-width: 2px !important;
+            border-bottom-style: solid !important;
+            border-bottom-color: var(--border-color);
+            border-radius: 0 !important;
+            box-shadow: none !important;
+            margin: 0 2px;
+            outline: none !important;
+            text-transform: uppercase;
+            width: 72px;
+            transition: border-bottom-width var(--transition-speed), border-bottom-color var(--transition-speed);
+        }
+
+        .sun-editor .se-dropdown .se-form-group .se-color-input:hover,
+        .sun-editor input.se-color-input:hover {
+            background: transparent !important;
+            border-top: 0 !important;
+            border-left: 0 !important;
+            border-right: 0 !important;
+            border-bottom-width: 2px !important;
+            border-bottom-style: solid !important;
+            box-shadow: none !important;
+        }
+
+        .sun-editor .se-dropdown .se-form-group .se-color-input:focus,
+        .sun-editor .se-dropdown .se-form-group .se-color-input:focus-visible,
+        .sun-editor input.se-color-input:focus,
+        .sun-editor input.se-color-input:focus-visible {
+            background: transparent !important;
+            border-top: 0 !important;
+            border-left: 0 !important;
+            border-right: 0 !important;
+            border-bottom-width: 3px !important;
+            border-bottom-style: solid !important;
+            box-shadow: none !important;
+            outline: none !important;
+        }
+
+        .sun-editor input.se-color-input:active {
+            background: transparent !important;
+            border-top: 0 !important;
+            border-left: 0 !important;
+            border-right: 0 !important;
+            border-bottom-width: 2px !important;
+            border-bottom-style: solid !important;
+            box-shadow: none !important;
+        }
+
+        /* SunEditor: pasek narzędzi — szary → pomarańcz → szary. */
+        .sun-editor .se-btn:not(.se-btn-success):not(.se-btn-danger):not(.on):not(.active):enabled {
+            background-color: var(--control-se-btn-bg) !important;
+            border-color: var(--control-se-btn-border) !important;
+            color: var(--control-se-btn-color) !important;
+            outline: none !important;
+        }
+
+        .sun-editor .se-btn:not(.se-btn-success):not(.se-btn-danger):enabled.on,
+        .sun-editor .se-btn:not(.se-btn-success):not(.se-btn-danger):enabled.active {
+            background-color: var(--control-se-btn-bg-on) !important;
+            border-color: var(--control-se-btn-border-on) !important;
+            color: var(--control-se-btn-color-on) !important;
+            outline: none !important;
+            box-shadow: none !important;
+        }
+
+        .sun-editor .se-btn:not(.se-btn-success):not(.se-btn-danger):not(.on):not(.active):enabled:hover {
+            background-color: var(--control-se-btn-bg-hover) !important;
+            border-color: var(--control-se-btn-border-hover) !important;
+            color: var(--control-se-btn-color-hover) !important;
+            outline: none !important;
+            box-shadow: none !important;
+        }
+
+        .sun-editor .se-btn:not(.se-btn-success):not(.se-btn-danger):not(.on):not(.active):enabled:focus,
+        .sun-editor .se-btn:not(.se-btn-success):not(.se-btn-danger):not(.on):not(.active):enabled:focus-visible {
+            background-color: var(--control-se-btn-bg-focus) !important;
+            border-color: var(--control-se-btn-border-focus) !important;
+            color: var(--control-se-btn-color-focus) !important;
+            outline: none !important;
+            box-shadow: var(--control-se-btn-shadow-focus) !important;
+        }
+
+        .sun-editor .se-btn:not(.se-btn-success):not(.se-btn-danger):not(.on):not(.active):enabled:active,
+        .sun-editor .se-btn:not(.se-btn-success):not(.se-btn-danger):not(.on):not(.active):enabled.__se__active {
+            background-color: var(--control-se-btn-bg-active) !important;
+            border-color: var(--control-se-btn-border-active) !important;
+            color: var(--control-se-btn-color-active) !important;
+            outline: none !important;
+            box-shadow: none !important;
+        }
+
+        .sun-editor .se-btn:not(.se-btn-success):not(.se-btn-danger):enabled.on:hover,
+        .sun-editor .se-btn:not(.se-btn-success):not(.se-btn-danger):enabled.active:hover {
+            background-color: var(--control-se-btn-bg-hover) !important;
+            border-color: var(--control-se-btn-border-hover) !important;
+            color: var(--control-se-btn-color-hover) !important;
+            outline: none !important;
+            box-shadow: none !important;
+        }
+
+        .sun-editor .se-btn:not(.se-btn-success):not(.se-btn-danger):enabled.on:focus,
+        .sun-editor .se-btn:not(.se-btn-success):not(.se-btn-danger):enabled.on:focus-visible,
+        .sun-editor .se-btn:not(.se-btn-success):not(.se-btn-danger):enabled.active:focus,
+        .sun-editor .se-btn:not(.se-btn-success):not(.se-btn-danger):enabled.active:focus-visible {
+            background-color: var(--control-se-btn-bg-focus) !important;
+            border-color: var(--control-se-btn-border-focus) !important;
+            color: var(--control-se-btn-color-focus) !important;
+            outline: none !important;
+            box-shadow: var(--control-se-btn-shadow-focus) !important;
+        }
+
+        .sun-editor .se-btn:not(.se-btn-success):not(.se-btn-danger):enabled.on:active,
+        .sun-editor .se-btn:not(.se-btn-success):not(.se-btn-danger):enabled.active:active,
+        .sun-editor .se-btn:not(.se-btn-success):not(.se-btn-danger):enabled.on.__se__active,
+        .sun-editor .se-btn:not(.se-btn-success):not(.se-btn-danger):enabled.active.__se__active {
+            background-color: var(--control-se-btn-bg-active) !important;
+            border-color: var(--control-se-btn-border-active) !important;
+            color: var(--control-se-btn-color-active) !important;
+            outline: none !important;
+            box-shadow: none !important;
+        }
+
+        .sun-editor .se-menu-list li:hover .se-side-btn-a:not(.on):not(.active):enabled,
+        .sun-editor .se-menu-list li:hover .se-side-btn-b:not(.on):not(.active):enabled,
+        .sun-editor .se-menu-list li:hover .se-side-btn-before:not(.on):not(.active):enabled,
+        .sun-editor .se-menu-list li:hover .se-side-btn-after:not(.on):not(.active):enabled {
+            border-color: var(--control-se-btn-border-hover) !important;
+        }
+
+        /* SunEditor: ukryte FIELD — kolory i cienie z tokenów strony, bez outline SE. */
+        .sun-editor .se-menu-list li.se-toolbar-hidden-btn .se-btn,
+        .sun-editor .se-menu-list li.se-toolbar-hidden-btn .se-toolbar-btn {
+            background-color: var(--control-se-toolbar-hidden-bg) !important;
+            border-color: var(--control-se-toolbar-hidden-border) !important;
+            color: var(--control-se-toolbar-hidden-color) !important;
+            box-shadow: var(--control-se-toolbar-hidden-shadow) !important;
+            outline: none !important;
+            transition: box-shadow var(--transition-speed), transform var(--transition-speed), background-color var(--transition-speed), border-color var(--transition-speed), color var(--transition-speed);
+        }
+
+        .sun-editor .se-menu-list li.se-toolbar-hidden-btn .se-btn:not(.on):not(.active):enabled:hover,
+        .sun-editor .se-menu-list li.se-toolbar-hidden-btn .se-toolbar-btn:enabled:hover {
+            background-color: var(--control-se-toolbar-hidden-bg-hover) !important;
+            border-color: var(--control-se-toolbar-hidden-border-hover) !important;
+            color: var(--control-se-toolbar-hidden-color-hover) !important;
+            box-shadow: var(--control-se-toolbar-hidden-shadow-hover) !important;
+            outline: none !important;
+            transform: translateY(var(--control-se-toolbar-hidden-lift-hover));
+        }
+
+        .sun-editor .se-menu-list li.se-toolbar-hidden-btn .se-btn:not(.on):not(.active):enabled:focus,
+        .sun-editor .se-menu-list li.se-toolbar-hidden-btn .se-btn:not(.on):not(.active):enabled:focus-visible,
+        .sun-editor .se-menu-list li.se-toolbar-hidden-btn .se-toolbar-btn:enabled:focus,
+        .sun-editor .se-menu-list li.se-toolbar-hidden-btn .se-toolbar-btn:enabled:focus-visible {
+            background-color: var(--control-se-btn-bg-focus) !important;
+            border-color: var(--control-se-btn-border-focus) !important;
+            color: var(--control-se-btn-color-focus) !important;
+            box-shadow: var(--control-se-btn-shadow-focus) !important;
+            outline: none !important;
+            transform: none;
+        }
+
+        .sun-editor .se-menu-list li.se-toolbar-hidden-btn .se-btn:not(.on):not(.active):enabled:active,
+        .sun-editor .se-menu-list li.se-toolbar-hidden-btn .se-toolbar-btn:enabled:active,
+        .sun-editor .se-menu-list li.se-toolbar-hidden-btn .se-btn:not(.on):not(.active):enabled.__se__active,
+        .sun-editor .se-menu-list li.se-toolbar-hidden-btn .se-toolbar-btn:enabled.__se__active {
+            background-color: var(--control-se-toolbar-hidden-bg-active) !important;
+            border-color: var(--control-se-toolbar-hidden-border-active) !important;
+            color: var(--control-se-toolbar-hidden-color-active) !important;
+            box-shadow: var(--control-se-toolbar-hidden-shadow-active) !important;
+            outline: none !important;
+            transform: translateY(0);
+        }
+
+        .sun-editor .se-menu-list li.se-toolbar-hidden-btn .se-btn.on,
+        .sun-editor .se-menu-list li.se-toolbar-hidden-btn .se-btn.active {
+            background-color: var(--control-se-btn-bg-on) !important;
+            border-color: var(--control-se-btn-border-on) !important;
+            color: var(--control-se-btn-color-on) !important;
+            box-shadow: var(--control-se-toolbar-hidden-shadow) !important;
+            outline: none !important;
+        }
+
+        body[data-page-theme="midnight"] .sun-editor .se-container {
+            box-shadow: var(--shadow-drop);
+        }
+    </style>
+</head>
+
+<body>
+    <h1>SunEditor Demo</h1>
+    <div class="theme-switcher">
+        <label for="editor-theme">Motyw edytora</label>
+        <select id="editor-theme" aria-label="Motyw interfejsu SunEditor">
+            <option value="">Domyślny</option>
+            <option value="auto">Auto (system)</option>
+            <option value="dark">Ciemny</option>
+            <option value="midnight">Północ</option>
+            <option value="cobalt">Kobalt</option>
+            <option value="cream">Kremowy</option>
+        </select>
+    </div>
+    <textarea id="editor"></textarea>
+    <script>
+        (function () {
+            const THEME_STORAGE_KEY = "suneditor-demo-theme";
+            const el = document.getElementById("editor");
+            const themeSelect = document.getElementById("editor-theme");
+            if (typeof SUNEDITOR === "undefined") {
+                console.error("SUNEDITOR nie załadował się (sprawdź ścieżki vendor/ i kolejność skryptów).");
+                return;
+            }
+            const themeValues = Array.from(themeSelect.options).map(function (o) { return o.value; });
+            const savedTheme = localStorage.getItem(THEME_STORAGE_KEY);
+            const initialTheme =
+                savedTheme !== null && themeValues.indexOf(savedTheme) !== -1 ? savedTheme : "midnight";
+            themeSelect.value = initialTheme;
+            function resolveThemeForEditor(pick) {
+                if (pick === "auto") {
+                    return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "";
+                }
+                return pick;
+            }
+            /** Synchronizacja tła i tekstu strony z faktycznym motywem edytora (po „Auto” to już dark albo default). */
+            function applyBodyPageTheme(resolvedSunEditorTheme) {
+                const key = resolvedSunEditorTheme === "" ? "default" : resolvedSunEditorTheme;
+                document.body.setAttribute("data-page-theme", key);
+                const lightShell = key === "default" || key === "cream";
+                document.documentElement.style.colorScheme = lightShell ? "light" : "dark";
+                if (lightShell) {
+                    document.documentElement.removeAttribute("theme");
+                } else {
+                    document.documentElement.setAttribute("theme", "dark");
+                }
+                document.documentElement.classList.add("theme-switching");
+                window.requestAnimationFrame(function () {
+                    window.requestAnimationFrame(function () {
+                        document.documentElement.classList.remove("theme-switching");
+                    });
+                });
+            }
+            /** Motyw CodeMirror 5 w widoku kodu — składane z externalLibs.codeMirror.options (patrz init w SunEditor). */
+            function codeMirrorThemeForSun(resolvedSunTheme) {
+                if (resolvedSunTheme === "" || resolvedSunTheme === "cream") {
+                    return "default";
+                }
+                return "monokai";
+            }
+            function buildExternalLibs(resolvedSunTheme) {
+                return {
+                    codeMirror: {
+                        src: CodeMirror,
+                        options: { theme: codeMirrorThemeForSun(resolvedSunTheme) },
+                    },
+                    katex: { src: katex },
+                };
+            }
+            const demoLayouts = {
+                items: [
+                    {
+                        name: "Dwie kolumny",
+                        html: '<div class="se-component se-layout-container"><div style="display:flex;gap:12px"><div style="flex:1"><p>Kolumna lewa</p></div><div style="flex:1"><p>Kolumna prawa</p></div></div></div>',
+                    },
+                    {
+                        name: "Sekcja",
+                        html: "<section><h2>Nagłówek sekcji</h2><p>Treść akapitu.</p></section>",
+                    },
+                ],
+            };
+            const demoTemplates = {
+                items: [
+                    {
+                        name: "Artykuł",
+                        html: "<article><h1>Tytuł</h1><p>Wstęp do artykułu.</p></article>",
+                    },
+                    {
+                        name: "Notatka",
+                        html: "<p><strong>Notatka:</strong> Uzupełnij treść.</p>",
+                    },
+                ],
+            };
+            applyBodyPageTheme(resolveThemeForEditor(initialTheme));
+            const editor = SUNEDITOR.create(el, {
+                // SunEditor 3: przyciski typu blockStyle/font/table to pluginy — bez tego: [SUNEDITOR.create.toolbar.fail]
+                plugins: SUNEDITOR.plugins,
+                height: "420px",
+                externalLibs: buildExternalLibs(resolveThemeForEditor(initialTheme)),
+                theme: resolveThemeForEditor(initialTheme),
+                layouts: demoLayouts,
+                templates: demoTemplates,
+                toolbar_sticky: 93,
+                subToolbar: {
+                    buttonList: [
+                        ["undo", "redo"],
+                        "|",
+                        ["blockStyle", "font", "fontSize"],
+                        "|",
+                        ["bold", "italic", "underline", "strike", "subscript", "superscript"],
+                        "|",
+                        ["fontColor", "backgroundColor"],
+                        "|",
+                        ["removeFormat", "copyFormat", "textStyle"],
+                        "/",
+                        ["blockquote", "paragraphStyle", "|", "align", "list_numbered", "list_bulleted", "|", "outdent", "indent", "lineHeight", "|", "dir_ltr", "dir_rtl"],
+                        ["table", "link", "image", "mention"],
+                        [":Insert-default.more_plus", "hr", "anchor", "math", "|", "template", "layout"],
+                        [":Media-default.more_media", "drawing", "video", "audio", "embed", "fileUpload"],
+                        [":Gallery-default.more_gallery", "imageGallery", "videoGallery", "audioGallery", "fileGallery", "fileBrowser"],
+                        "|",
+                        ["fullScreen", "showBlocks", "codeBlock", "codeView", "markdownView", "finder"],
+                        [":More-default.more_view", "newDocument", "selectAll", "save", "copy", "|", "preview", "print", "exportPDF"],
+                    ],
+                },
+                imageGallery: {
+                    data: [
+                        { src: "{{imageGallery-source}}/1.jpg", thumbnail: "{{imageGallery-source}}/thumb/1.jpg", name: "Image 1" },
+                        { src: "{{imageGallery-source}}/2.jpg", thumbnail: "{{imageGallery-source}}/thumb/2.jpg", name: "Image 2" },
+                    ],
+                },
+                videoGallery: {
+                    data: [
+                        { src: "{{videoGallery-source}}/1.mp4", thumbnail: "{{videoGallery-source}}/thumb/1.jpg", name: "Video 1" },
+                    ],
+                },
+                audioGallery: {
+                    data: [
+                        { src: "{{audioGallery-source}}/1.mp3", name: "Audio 1" },
+                    ],
+                },
+                fileGallery: {
+                    data: [
+                        { src: "{{fileGallery-source}}/doc.pdf", name: "Document.pdf", size: "2.5MB" },
+                    ],
+                },
+                fileBrowser: {
+                    data: {
+                        root: [{ src: "{{fileBrowser-source}}/file1.pdf", name: "file1.pdf" }],
+                    },
+                },
+                image: { uploadUrl: "/api/upload/image" },
+                video: { uploadUrl: "/api/upload/video" },
+                audio: { uploadUrl: "/api/upload/audio" },
+                embed: { uploadUrl: "/api/upload/file" },
+                mention: {
+                    apiUrl: "/api/mention",
+                    data: [
+                        { key: "john", name: "John Doe", url: "/users/john" },
+                        { key: "jane", name: "Jane Smith", url: "/users/jane" },
+                    ],
+                },
+                link: { uploadUrl: "/api/upload/file" },
+                exportPDF: { apiUrl: "/api/download/pdf" },
+                fileUpload: { uploadUrl: "/api/upload/file" },
+                buttonList: [
+                    ["undo", "redo"],
+                    "|",
+                    ["blockStyle", "font", "fontSize"],
+                    "|",
+                    ["bold", "italic", "underline", "strike", "subscript", "superscript"],
+                    "|",
+                    ["fontColor", "backgroundColor"],
+                    "|",
+                    ["removeFormat", "copyFormat", "textStyle"],
+                    "/",
+                    ["blockquote", "paragraphStyle", "|", "align", "list_numbered", "list_bulleted", "|", "outdent", "indent", "lineHeight", "|", "dir_ltr", "dir_rtl"],
+                    ["table", "link", "image", "mention"],
+                    [":Insert-default.more_plus", "hr", "anchor", "math", "|", "template", "layout"],
+                    [":Media-default.more_media", "drawing", "video", "audio", "embed", "fileUpload"],
+                    [":Gallery-default.more_gallery", "imageGallery", "videoGallery", "audioGallery", "fileGallery", "fileBrowser"],
+                    "|",
+                    ["fullScreen", "showBlocks", "codeBlock", "codeView", "markdownView", "finder"],
+                    [":More-default.more_view", "newDocument", "selectAll", "save", "copy", "|", "preview", "print", "exportPDF", "|"],
+                    [
+                        "%992",
+                        [
+                            ["undo", "redo"],
+                            "|",
+                            [":Format-default.more_paragraph", "blockStyle", "font", "fontSize"],
+                            ["bold", "italic", "underline", "strike", "subscript", "superscript"],
+                            [":Text-default.more_text", "fontColor", "backgroundColor", "|", "removeFormat", "copyFormat", "textStyle"],
+                            [":Paragraph-default.more_list", "blockquote", "paragraphStyle", "|", "align", "list_numbered", "list_bulleted", "|", "outdent", "indent", "lineHeight", "|", "dir_ltr", "dir_rtl"],
+                            ["table", "link", "image", "mention"],
+                            [":Insert-default.more_plus", "hr", "anchor", "math", "|", "template", "layout"],
+                            [":Media-default.more_media", "drawing", "video", "audio", "embed", "fileUpload"],
+                            [":Gallery-default.more_gallery", "imageGallery", "videoGallery", "audioGallery", "fileGallery", "fileBrowser"],
+                            "|",
+                            ["fullScreen", "showBlocks", "codeView", "markdownView", "finder"],
+                            [":More-default.more_view", "codeBlock", "markdownView", "|", "newDocument", "selectAll", "save", "copy", "|", "preview", "print", "exportPDF", "|"],
+                        ],
+                    ],
+                    [
+                        "%768",
+                        [
+                            ["undo", "redo"],
+                            "|",
+                            [":Format-default.more_paragraph", "blockStyle", "font", "fontSize"],
+                            ["bold", "italic", "underline", "strike"],
+                            "|",
+                            ["fontColor", "backgroundColor"],
+                            [":Text-default.more_text", "removeFormat", "|", "subscript", "superscript", "|", "copyFormat", "textStyle"],
+                            [":Paragraph-default.more_list", "blockquote", "paragraphStyle", "|", "align", "list_numbered", "list_bulleted", "|", "outdent", "indent", "lineHeight", "|", "dir_ltr", "dir_rtl"],
+                            [":Insert-default.more_plus", "table", "hr", "link", "anchor", "math", "|", "template", "layout", "|", "mention"],
+                            [":Media-default.more_media", "image", "drawing", "video", "audio", "embed", "fileUpload", "|", "imageGallery", "videoGallery", "audioGallery", "fileGallery", "fileBrowser"],
+                            ["-right", ":View-default.more_view", "fullScreen", "showBlocks", "codeBlock", "codeView", "markdownView", "finder", "|"],
+                            ["-right", ":Docs-default.more_horizontal", "newDocument", "selectAll", "save", "copy", "preview", "print", "exportPDF"],
+                        ],
+                    ],
+                    [
+                        "%576",
+                        [
+                            ["undo", "redo"],
+                            "|",
+                            [":Format-default.more_paragraph", "blockStyle", "font", "fontSize", "|", "blockquote", "paragraphStyle"],
+                            [":Text-default.more_text", "bold", "italic", "underline", "strike", "subscript", "superscript", "|", "fontColor", "backgroundColor", "|", "removeFormat", "copyFormat", "textStyle"],
+                            [":Paragraph-default.more_list", "align", "list_numbered", "list_bulleted", "|", "outdent", "indent", "lineHeight", "|", "dir_ltr", "dir_rtl"],
+                            [":Insert-default.more_plus", "table", "hr", "link", "anchor", "math", "|", "template", "layout", "|", "mention"],
+                            [":Media-default.more_media", "image", "drawing", "video", "audio", "embed", "fileUpload", "|", "imageGallery", "videoGallery", "audioGallery", "fileGallery", "fileBrowser"],
+                            ["-right", ":More-default.more_view", "fullScreen", "showBlocks", "codeBlock", "codeView", "markdownView", "finder", "|", "|", "newDocument", "selectAll", "save", "copy", "preview", "print", "exportPDF"],
+                        ],
+                    ],
+                ],
+            });
+            function applyThemeFromPicker() {
+                const pick = themeSelect.value;
+                const resolved = resolveThemeForEditor(pick);
+                applyBodyPageTheme(resolved);
+                localStorage.setItem(THEME_STORAGE_KEY, pick);
+                editor.resetOptions({
+                    theme: resolved,
+                    externalLibs: buildExternalLibs(resolved),
+                    layouts: demoLayouts,
+                    templates: demoTemplates,
+                });
+            }
+            themeSelect.addEventListener("change", applyThemeFromPicker);
+            const colorSchemeMq = window.matchMedia("(prefers-color-scheme: dark)");
+            function onSystemThemeChange() {
+                if (themeSelect.value === "auto") {
+                    const resolved = resolveThemeForEditor("auto");
+                    applyBodyPageTheme(resolved);
+                    editor.resetOptions({
+                        theme: resolved,
+                        externalLibs: buildExternalLibs(resolved),
+                        layouts: demoLayouts,
+                        templates: demoTemplates,
+                    });
+                }
+            }
+            if (typeof colorSchemeMq.addEventListener === "function") {
+                colorSchemeMq.addEventListener("change", onSystemThemeChange);
+            } else if (typeof colorSchemeMq.addListener === "function") {
+                colorSchemeMq.addListener(onSystemThemeChange);
+            }
+        })();
+    </script>
+</body>
+
+</html>
